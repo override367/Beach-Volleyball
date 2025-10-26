@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beach Volley – 2P</title>
+<style>
+  :root {
+    --skyTop: #6ec6ff;
+    --skyBottom: #cfeafe;
+    --sand: #f5d791;
+    --ui: #0b1b2b;
+    --uiSoft: rgba(0,0,0,0.4);
+    --white: #ffffff;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: linear-gradient(180deg, var(--skyTop), var(--skyBottom) 60%, var(--sand) 60%);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ui);
+    overflow: hidden;
+  }
+  .wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 12px 12px 0 12px;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: clamp(16px, 2.4vw, 24px);
+    margin: 0;
+    letter-spacing: .3px;
+  }
+  header .hint {
+    font-size: clamp(12px, 1.6vw, 14px);
+    opacity: .85;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: transparent;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.5);
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: grid;
+    place-items: start center;
+  }
+  .banner {
+    margin-top: 14px;
+    background: rgba(255,255,255,0.85);
+    color: var(--ui);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+  }
+  .toast {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.85);
+    color: var(--ui);
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Beach Volley – 2 Player</h1>
+      <div class="hint">
+        <strong>Left:</strong> A/D, W • <strong>Right:</strong> ←/→, ↑ • Space to serve • P pause • R reset
+      </div>
+    </header>
+    <div style="position:relative">
+      <canvas id="game" width="960" height="540" aria-label="Beach volleyball court"></canvas>
+      <div class="overlay">
+        <div class="banner" id="banner" hidden></div>
+      </div>
+      <div class="toast" id="toast">First to 7 points</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  // --- World/Court ---
+  const W = canvas.width;
+  const H = canvas.height;
+  const groundY = H - 64;         // sand top
+  const net = { x: W/2 - 6, y: groundY - 140, w: 12, h: 140 };
+
+  // --- Game state ---
+  const MAX_SCORE = 7;
+  let state = 'serve';            // 'serve' | 'play' | 'point' | 'gameover' | 'paused'
+  let server = Math.random() < 0.5 ? 'L' : 'R';
+  let scores = { L: 0, R: 0 };
+  let lastPointTime = 0;
+
+  // --- Physics constants ---
+  const GRAVITY = 1800;           // px/s^2
+  const AIR_DRAG = 0.000;         // minimal
+  const RESTITUTION = 0.78;       // bounciness
+  const BALL_RADIUS = 14;
+
+  // --- Players ---
+  function makePlayer(side) {
+    const w = 30, h = 70;
+    const pad = 40;
+    const x = side === 'L' ? W*0.25 - w/2 : W*0.75 - w/2;
+    return {
+      side, x, y: groundY - h, w, h,
+      vx: 0, vy: 0,
+      speed: 360,
+      jumpV: -720,
+      onGround: true,
+      color: side === 'L' ? '#ff7b54' : '#2a9d8f'
+    };
+  }
+  const L = makePlayer('L');
+  const R = makePlayer('R');
+
+  // --- Ball ---
+  const ball = { x: W/2, y: groundY - 200, vx: 0, vy: 0, r: BALL_RADIUS };
+
+  // --- Input ---
+  const keys = new Set();
+  window.addEventListener('keydown', (e) => {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    keys.add(e.key.toLowerCase());
+    if (e.key.toLowerCase() === 'p') togglePause();
+    if (e.key.toLowerCase() === 'r') hardReset();
+    if (e.code === 'Space') {
+      if (state === 'serve') doServe();
+    }
+  });
+  window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+  function togglePause(){
+    if (state === 'paused') { state = prevStateAfterPause || 'serve'; showBanner(); }
+    else if (state !== 'gameover') { prevStateAfterPause = state; state = 'paused'; showBanner('Paused (P to resume)'); }
+  }
+  let prevStateAfterPause = null;
+
+  function hardReset(){
+    scores = { L: 0, R: 0 };
+    server = Math.random() < 0.5 ? 'L' : 'R';
+    state = 'serve';
+    positionForServe();
+    showBanner();
+  }
+
+  // --- Serve handling ---
+  function positionForServe() {
+    const p = server === 'L' ? L : R;
+    ball.x = p.side === 'L' ? W * 0.3 : W * 0.7;
+    ball.y = groundY - 220;
+    ball.vx = 0; ball.vy = 0;
+  }
+  function doServe() {
+    // gentle upward-forward serve
+    const dir = (server === 'L') ? 1 : -1;
+    ball.vx = 380 * dir;
+    ball.vy = -500;
+    state = 'play';
+    hideBanner();
+  }
+
+  // --- Utility: clamp, sign ---
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const sgn = (v) => (v < 0 ? -1 : 1);
+
+  // --- Collision: circle vs rect (resolve & reflect ball) ---
+  function resolveCircleRect(ball, rect, e = RESTITUTION) {
+    // Find closest point on rect to circle center
+    const closestX = clamp(ball.x, rect.x, rect.x + rect.w);
+    const closestY = clamp(ball.y, rect.y, rect.y + rect.h);
+    const dx = ball.x - closestX;
+    const dy = ball.y - closestY;
+    const dist2 = dx*dx + dy*dy;
+    const r = ball.r;
+
+    if (dist2 < r*r - 0.0001) {
+      const dist = Math.sqrt(dist2) || 0.00001;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      // push out
+      const penetration = r - dist;
+      ball.x += nx * penetration;
+      ball.y += ny * penetration;
+      // reflect velocity along normal
+      const vDotN = ball.vx * nx + ball.vy * ny;
+      ball.vx = ball.vx - (1 + e) * vDotN * nx;
+      ball.vy = ball.vy - (1 + e) * vDotN * ny;
+
+      // slight tangential damping
+      ball.vx *= 0.995;
+      ball.vy *= 0.995;
+
+      return true;
+    }
+    return false;
+  }
+
+  // --- Player movement & collisions ---
+  function handlePlayerInput(p, leftKey, rightKey, jumpKey, dt) {
+    const left = keys.has(leftKey);
+    const right = keys.has(rightKey);
+    const jump = keys.has(jumpKey);
+
+    // horizontal
+    const target = (left ? -p.speed : 0) + (right ? p.speed : 0);
+    const accel = 2200;
+    p.vx += clamp(target - p.vx, -accel*dt, accel*dt);
+
+    // jump
+    if (jump && p.onGround) {
+      p.vy = p.jumpV;
+      p.onGround = false;
+    }
+
+    // gravity
+    p.vy += GRAVITY * dt;
+
+    // integrate
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // floor
+    if (p.y + p.h >= groundY) {
+      p.y = groundY - p.h;
+      p.vy = 0;
+      p.onGround = true;
+    } else {
+      p.onGround = false;
+    }
+
+    // walls
+    if (p.x < 8) { p.x = 8; p.vx = 0; }
+    if (p.x + p.w > W - 8) { p.x = W - 8 - p.w; p.vx = 0; }
+
+    // don't pass through the net (keep each on their half by default)
+    if (p.side === 'L' && p.x + p.w > net.x - 4) {
+      p.x = net.x - 4 - p.w; p.vx = Math.min(0, p.vx);
+    }
+    if (p.side === 'R' && p.x < net.x + net.w + 4) {
+      p.x = net.x + net.w + 4; p.vx = Math.max(0, p.vx);
+    }
+
+    // ground friction
+    if (p.onGround) p.vx *= 0.85;
+  }
+
+  function rectOf(p){ return { x: p.x, y: p.y, w: p.w, h: p.h }; }
+
+  // --- Ball physics ---
+  function updateBall(dt) {
+    // gravity + air
+    ball.vy += GRAVITY * dt;
+    ball.vx *= (1 - AIR_DRAG);
+    ball.vy *= (1 - AIR_DRAG);
+
+    // integrate
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // walls
+    if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = -ball.vx * RESTITUTION; }
+    if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.vx = -ball.vx * RESTITUTION; }
+    if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy = -ball.vy * RESTITUTION; }
+
+    // ground
+    if (ball.y + ball.r >= groundY) {
+      // point scored immediately when touching ground
+      ball.y = groundY - ball.r;
+      ball.vy = -Math.abs(ball.vy) * RESTITUTION * 0.5; // dampen
+      onBallGrounded();
+    }
+
+    // collide with net & players
+    resolveCircleRect(ball, net, 0.65);
+    resolveCircleRect(ball, rectOf(L));
+    resolveCircleRect(ball, rectOf(R));
+  }
+
+  function onBallGrounded() {
+    if (state !== 'play') return;
+    const leftSide = ball.x < net.x + net.w/2;
+    // Ball touched ground: opposite side scores
+    if (leftSide) scores.R += 1; else scores.L += 1;
+
+    // check game over
+    const winner = scores.L >= MAX_SCORE ? 'Left' : scores.R >= MAX_SCORE ? 'Right' : null;
+
+    if (winner) {
+      state = 'gameover';
+      showBanner(`${winner} wins!  (R to restart)`);
+    } else {
+      state = 'point';
+      lastPointTime = performance.now();
+      server = leftSide ? 'R' : 'L'; // side that didn't fault serves next
+      showBanner(`${server === 'L' ? 'Left' : 'Right'} to serve  (Space)`);
+    }
+  }
+
+  // --- UI helpers ---
+  const bannerEl = document.getElementById('banner');
+  const toastEl = document.getElementById('toast');
+
+  function showBanner(text) {
+    bannerEl.hidden = false;
+    bannerEl.textContent = text ?? (state === 'serve'
+      ? `${server === 'L' ? 'Left' : 'Right'} to serve  (Space)`
+      : state === 'paused' ? 'Paused (P to resume)'
+      : '');
+  }
+  function hideBanner(){ bannerEl.hidden = true; }
+
+  // --- Rendering ---
+  function drawCourt() {
+    // sand
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+    ctx.fillRect(0, groundY, W, H-groundY);
+
+    // court line
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(16, groundY-2, W-32, 2);
+
+    // net post & net
+    // post
+    ctx.fillStyle = '#8e9aa6';
+    ctx.fillRect(net.x + net.w/2 - 3, net.y - 10, 6, net.h + 10);
+    // mesh
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(net.x, net.y, net.w, net.h);
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    for (let y = net.y; y < net.y + net.h; y += 12) {
+      ctx.fillRect(net.x, y, net.w, 2);
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
+  function drawPlayer(p) {
+    // body
+    ctx.fillStyle = p.color;
+    roundRect(p.x, p.y, p.w, p.h, 8);
+    ctx.fill();
+    // head
+    ctx.beginPath();
+    ctx.arc(p.x + p.w/2, p.y - 14, 12, 0, Math.PI*2);
+    ctx.fillStyle = '#ffdeba';
+    ctx.fill();
+  }
+
+  function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fillStyle = '#ffd166';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.stroke();
+    // simple seam
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r*0.65, 0.2, Math.PI+0.2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  function drawScore() {
+    const left = scores.L.toString();
+    const right = scores.R.toString();
+    ctx.font = '600 28px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 4;
+
+    const text = `${left} : ${right}`;
+    const x = W/2;
+    const y = 8;
+    ctx.strokeText(text, x - ctx.measureText(text).width/2, y);
+    ctx.fillText(text, x - ctx.measureText(text).width/2, y);
+
+    // server dot
+    ctx.beginPath();
+    ctx.arc(server === 'L' ? x - 26 : x + 26, y + 26, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+  }
+
+  // --- Main loop ---
+  let last = performance.now();
+  positionForServe();
+  showBanner();
+
+  function loop(now) {
+    const rawDt = (now - last) / 1000;
+    last = now;
+    const dt = Math.min(1/30, rawDt); // clamp for stability
+
+    ctx.clearRect(0,0,W,H);
+    drawCourt();
+
+    if (state === 'paused') {
+      // Still draw actors
+      drawPlayer(L); drawPlayer(R); drawBall(); drawScore();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    // Update
+    if (state === 'serve') {
+      // idle bobbing ball
+      ball.y += Math.sin(now/250) * 0.2;
+    } else if (state === 'play') {
+      handlePlayerInput(L, 'a', 'd', 'w', dt);
+      handlePlayerInput(R, 'arrowleft', 'arrowright', 'arrowup', dt);
+      updateBall(dt);
+    } else if (state === 'point') {
+      // freeze a moment then move to serve
+      if (now - lastPointTime > 1100) {
+        state = 'serve';
+        positionForServe();
+        showBanner();
+      }
+      handlePlayerInput(L, 'a', 'd', 'w', dt*0.5); // allow some settling
+      handlePlayerInput(R, 'arrowleft', 'arrowright', 'arrowup', dt*0.5);
+    } else if (state === 'gameover') {
+      // nothing to update
+    }
+
+    // Draw
+    drawPlayer(L);
+    drawPlayer(R);
+    drawBall();
+    drawScore();
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // --- Accessibility / small UX niceties ---
+  function setToast(text, ms=2200){
+    toastEl.textContent = text;
+    toastEl.style.opacity = '1';
+    clearTimeout(setToast._t);
+    setToast._t = setTimeout(()=>{ toastEl.style.opacity = '0.0'; }, ms);
+  }
+  setToast('Space to serve • P pause • R reset');
+
+})();
+</script>
+</body>
+</html>
