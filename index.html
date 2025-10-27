@@ -1,388 +1,71 @@
-<!DOCTYPE html>
-<!-- saved from url=(0098)file:///C:/Users/dave.DESKTOP-I38RLC1/Downloads/raft_parry_v_3_9_merged_graphics_from_3%20(4).html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
-  <title>Raft Parry — v3.9 (graphics from 3.8 + working audio @50%)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    html, body { height: 100%; margin: 0; background: #0b0f16; color: #e9ecf1; font-family: Inter, system-ui, sans-serif; user-select: none; }
-    .wrap { display: grid; place-items: center; height: 100%; padding: 16px; gap: 16px; }
-    #hud { width: 960px; max-width: 96vw; display: flex; justify-content: space-between; align-items: center; font-weight: 600; letter-spacing: 0.3px; }
-    #hud .stat { opacity: 0.9; }
-    #game { width: 960px; height: 540px; max-width: 96vw; border-radius: 12px; background: #0b0f16;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05); display: block; }
-    .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-    .overlay .panel { background: rgba(10,12,16,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 30px rgba(0,0,0,0.45); backdrop-filter: blur(10px); padding: 20px 24px; border-radius: 12px; text-align: center; }
-    .tests { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; opacity: 0.8; white-space: pre-line; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div id="hud">
-      <div class="row">
-        <span class="badge">W/S or ↑/↓: move • Space: parry/dodge • R: reset (stops BGM) • Press SPACE to start (enables audio)</span>
-      </div>
-      <div class="row">
-        <div class="stat">Score: <span id="score">0</span></div>
-        <div class="stat" style="margin-left:16px;">You: <span id="plives">0</span></div>
-        <div class="stat" style="margin-left:16px;">Enemy: <span id="elives">5</span></div>
-      </div>
-    </div>
-
-    <div id="stage" style="position: relative;">
-      <canvas id="game" width="960" height="540"></canvas>
-      <div id="overlay" class="overlay" style="display: grid;">
-        <div class="panel">
-          <h1 id="overlayTitle">Your raft sank!</h1>
-          <p style="max-width:720px; margin: 0 auto; line-height:1.35;">
-            <b>How to Play</b><br>
-            • Move: <b>W/S</b> or <b>↑/↓</b> &nbsp;•&nbsp; Parry/Dodge: <b>Space</b> &nbsp;•&nbsp; Reset: <b>R</b><br>
-            • Parry at the last moment to <b>reflect</b> cannonballs back at the enemy.<br>
-            • <b>Slow balls</b> will lose steam and <b>drop into the water</b> — you can safely ignore them.<br>
-            • Destroy the enemy raft before they sink yours.
-          </p>
-          <div class="tests" id="testOutput" style="display:none">✔ state starts as ready
-✔ AudioManager present
-✔ spawnExplosionBits exists
-✔ draw/updateParticles exist
-✔ expired particle removed via .life (no p.*)
-✔ drawProjectile does not throw on minimal projectile</div>
-        </div>
-      </div>
-    <div style="position: absolute; left: 8px; top: 8px; font: 12px ui-monospace; opacity: 0.5;">Tip: drag audio files here (bg/cannon/deflect/explosion) for offline use</div></div>
-  </div>
-
-  <script>
-  (() => {
-    // ===== AUDIO (WebAudio manager) =====
-    const AUDIO_URLS = {
-      bg: "https://github.com/override367/sounds/raw/refs/heads/main/gestralbeech.mp3",
-      cannon: "https://github.com/override367/sounds/raw/refs/heads/main/firearm-shotgun-1.mp3",
-      deflect: "https://github.com/override367/sounds/raw/refs/heads/main/shield-hit-11.mp3",
-      explosion: "https://github.com/override367/sounds/raw/refs/heads/main/explosion-with-rubble-1.mp3"
-    };
-
-    // Drag/drop local files support (works offline). Name your files to include one of: bg, cannon, deflect, explosion
-    const dropHint = document.createElement('div');
-    dropHint.style.cssText = 'position:absolute;left:8px;top:8px;font:12px ui-monospace;opacity:.5';
-    dropHint.textContent = 'Tip: drag audio files here (bg/cannon/deflect/explosion) for offline use';
-    document.getElementById('stage').appendChild(dropHint);
-
-    const AudioManager = (() => {
-      // HTMLAudio-based implementation with idempotent BGM start/stop
-      const buffers = {}; // placeholder for API parity
-      let sfx = { cannon: null, deflect: null, explosion: null };
-      let bgMusic = null;
-      let bgStarted = false; // guard to prevent overlapping BGM
-
-      function makeAudioPool(url, count) {
-        const pool = new Array(count).fill(0).map(() => {
-          const a = new Audio(url);
-          a.volume = 0.5; // 50% volume
-          a.preload = 'auto';
-          return a;
-        });
-        let idx = 0;
-        return {
-          play() {
-            const a = pool[idx];
-            idx = (idx + 1) % pool.length;
-            try { a.currentTime = 0; a.play(); } catch (e) { /* ignore */ }
-          }
-        };
+{
+  "name": "Lumiselle Chorus-Muse",
+  "type": "npc",
+  "img": "icons/magic/air/air-wave-gust-purple.webp",
+  "system": {
+    "abilities": {"str":{"value":10},"dex":{"value":18},"con":{"value":18},"int":{"value":12},"wis":{"value":14},"cha":{"value":18}},
+    "attributes": {
+      "ac":{"calc":"flat","flat":18},
+      "hp":{"value":102,"max":102,"formula":"12d8 + 48"},
+      "movement":{"walk":30,"fly":20,"hover":true},
+      "senses":{"blindsight":60}
+    },
+    "details": {
+      "type":{"value":"fey"},
+      "alignment":"chaotic neutral",
+      "cr":8,
+      "biography":{"value":"Blind singer-painter of the Nails; beauty made peril. Hard to hit; enthralls with chorus."}
+    },
+    "traits":{
+      "size":"med",
+      "languages":{"value":["sylvan"],"custom":"Lexica; telepathy 60 ft"}
+    },
+    "source":{"revision":1,"rules":"2024"}
+  },
+  "items":[
+    {
+      "name":"Shimmering Veil",
+      "type":"feat",
+      "system":{"description":{"value":"Attack rolls against the Lumiselle have disadvantage while it’s not incapacitated. If hit, this trait is suppressed until the start of its next turn."}}
+    },
+    {
+      "name":"Magic Resistance",
+      "type":"feat",
+      "system":{"description":{"value":"Advantage on saving throws against spells and other magical effects."}}
+    },
+    {
+      "name":"Caress of Petals",
+      "type":"weapon",
+      "img":"icons/magic/air/wind-vortex-swirl-purple.webp",
+      "system":{
+        "type":{"value":"natural"},
+        "range":{"value":5,"units":"ft"},
+        "damage":{"base":{"number":2,"denomination":6,"types":["radiant"]}},
+        "properties":["mgc"],
+        "activities":{"atk":{"_id":"atk","type":"attack","activation":{"type":"action","value":1},"attack":{"ability":"dex","type":{"value":"melee"}}}},
+        "description":{"value":"Melee Weapon Attack: [[/attack]] to hit, reach 5 ft., one target. Hit: [[/r 2d6+4]] radiant; DC 16 Wis save or the target has disadvantage on its next attack before the end of its next turn."}
       }
-
-      async function ensureContext(){ return; }
-
-      async function initOnlineDefaults(){
-        try {
-          sfx.cannon = makeAudioPool(AUDIO_URLS.cannon, 4);
-          sfx.deflect = makeAudioPool(AUDIO_URLS.deflect, 4);
-          sfx.explosion = makeAudioPool(AUDIO_URLS.explosion, 6);
-          bgMusic = new Audio(AUDIO_URLS.bg);
-          bgMusic.loop = true;
-          bgMusic.volume = 0.5; // 50%
-          bgMusic.preload = 'auto';
-        } catch(e) {
-          console.warn('Audio init failed:', e);
-        }
+    },
+    {
+      "name":"Lulling Chorus",
+      "type":"feat",
+      "img":"icons/magic/sonic/scream-wail-shout-teal.webp",
+      "system":{
+        "recharge":{"value":5,"charged":true},
+        "activities":{
+          "save":{"_id":"save","type":"save","activation":{"type":"action","value":1},"save":{"ability":["wis"],"dc":{"formula":"16"}}}
+        },
+        "description":{"value":"Each creature of your choice within 30 ft that can hear you must make a DC 16 Wis save or be Charmed and Incapacitated while hearing the song (as hypnotic pattern centered on you). Repeat the save at the end of each of its turns."}
       }
-
-      async function load(){ /* no-op */ }
-
-      function startBgOnce(){
-        if (!bgMusic) return;
-        if (bgStarted) return; // already playing
-        bgStarted = true;
-        try { bgMusic.currentTime = 0; bgMusic.play(); } catch(e) {}
-      }
-
-      function play(name){
-        if (name === 'bg') { startBgOnce(); return; }
-        if (sfx[name]) sfx[name].play();
-      }
-
-      function stop(name){
-        if (name === 'bg' && bgMusic) {
-          try { bgMusic.pause(); } catch(e) {}
-          try { bgMusic.currentTime = 0; } catch(e) {}
-          bgStarted = false;
-        }
-      }
-
-      async function start(bg=true){ if (bg) startBgOnce(); }
-
-      return { ensureContext, load, play, stop, start, initOnlineDefaults, buffers };
-    })();
-
-    // Kick off online loads in the background; they complete after SPACE resume
-    AudioManager.initOnlineDefaults();
-
-    async function startAudioWeb(){
-      await AudioManager.ensureContext();
-      await AudioManager.start(true);
-    }
-
-    // ===== GAME CONSTANTS (from v3.8 visuals) =====
-    const W=960,H=540; const IMPACT_X=180; const PLAYER_RAFT_X=IMPACT_X-120; const ENEMY_RAFT_X=W-170; const SPAWN_X=W-120;
-    const PLAYER_CENTER_X=PLAYER_RAFT_X+70; const ENEMY_CENTER_X=ENEMY_RAFT_X+70;
-    const LANES=5; const TOP_MARGIN=110, BOTTOM_MARGIN=H-110; const laneY=i=> (LANES===1?H/2:TOP_MARGIN+i*((BOTTOM_MARGIN-TOP_MARGIN)/(LANES-1)));
-    const V0_RANGE=[240,360]; const A_RANGE=[140,260]; const ARC_HEIGHT_RANGE=[36,82]; const SIZE_IN_MIN=0.50, SIZE_IN_MAX=1.70;
-    const PERFECT_WINDOW_SECONDS=0.25, DODGE_WINDOW_SECONDS=1.0, BLOCK_COOLDOWN=0.5; const REFLECT_ACCEL_SCALE=1.0, REFLECT_SPEED_SCALE=1.0, PERFECT_BONUS=1;
-    const ENEMY_WINDUP_MS=350, BURST_CADENCE_MS=525, BURST_CADENCE_ACTIVE_MS=600, SLOW_EXTRA_DELAY_MS=220, BURST_PAUSE_RANGE_S=[2.5,3.8], BURST_SIZE_RANGE=[3,5];
-    const MAX_ENEMY_LANE_STEP=2; const PLAYER_LIVES=3, ENEMY_LIVES=5, PLAYER_RADIUS=20, PROJECTILE_RADIUS=14, PLAYER_SPRITE_SIZE=96, PLAYER_BLOCK_SCALE=1.30, ENEMY_SPRITE_SIZE=88;
-    const WATER_SCROLL_SPEED_X=10, WATER_SCROLL_SPEED_Y=4, WATER_SCALE=0.15; const ENEMY_MUZZLE_OFFSET_X=14, ENEMY_MUZZLE_OFFSET_Y=-6;
-
-    // ===== HELPERS =====
-    const rand=(a,b)=>Math.random()*(b-a)+a; const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a; const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-    const timeToTravel=(d,v0,a)=> (a<=1e-8? d/Math.max(1e-6,v0):((-v0+Math.sqrt(v0*v0+2*a*d))/a));
-    function arcSafe(ctx,x,y,r,sa,ea,ccw=false){ r=Math.max(0,r||0); if(!r) return; ctx.arc(x,y,r,sa,ea,ccw);} function inboundProgress(p,x){ return clamp((p.x0-x)/p.distance,0,1);} 
-
-    // ===== STATE & DOM =====
-    const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d'); const $score=document.getElementById('score'); const $plives=document.getElementById('plives'); const $elives=document.getElementById('elives'); const $overlay=document.getElementById('overlay'); const $overlayTitle=document.getElementById('overlayTitle'); const $testOutput=document.getElementById('testOutput');
-    let state='ready', endingSide=null, endTimer=0, score=0, playerLives=PLAYER_LIVES, enemyLives=ENEMY_LIVES;
-    const player={ lane:Math.floor(LANES/2), blockFxTimer:0, blockPoseTimer:0 };
-    const enemy={ lane:Math.floor(LANES/2), y:laneY(Math.floor(LANES/2)), moving:false, moveFromY:laneY(Math.floor(LANES/2)), moveToY:laneY(Math.floor(LANES/2)), moveStart:0, moveDur:0.25 };
-    let projectiles=[]; let spawnCount=0; let spawnTimerMs=BURST_CADENCE_MS; let burstRemaining=randInt(BURST_SIZE_RANGE[0],BURST_SIZE_RANGE[1]); let burstPauseS=0; let firePending=null; let lastBlockAt=-Infinity;
-    const particles=[], flashes=[], smokes=[], smokeEmitters=[]; let waterPattern=null, waterScrollX=0, waterScrollY=0; let shakeT=0,shakeDur=0,shakeAmp=0;
-
-    // ===== SPRITES =====
-    const sprites={ raft:null, playerIdle:null, playerBlock:null, cannon:null, projectileA:null, projectileB:null, smoke:null, waterTex:null };
-    function loadSprite(name,src){ const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>{sprites[name]=img;}; img.src=src; }
-    loadSprite('raft','https://i.imgur.com/8goUZcu.png');
-    loadSprite('playerIdle','https://i.imgur.com/keujeuT.png');
-    loadSprite('playerBlock','https://i.imgur.com/xdXxYim.png');
-    loadSprite('cannon','https://i.imgur.com/sH0Xb1y.png');
-    loadSprite('projectileA','https://i.imgur.com/0WunjJ8.png');
-    loadSprite('projectileB','https://i.imgur.com/oTaObfJ.png');
-    loadSprite('smoke','https://i.imgur.com/HBP4Zq8.png');
-    loadSprite('waterTex','https://i.imgur.com/mGm3Jbi.png');
-
-    // ===== FX: particles =====
-    function spawnExplosionBits(cx, cy, count, colorA, colorB) {
-      for (let i=0;i<count;i++){
-        const ang = Math.random()*Math.PI*2;
-        const spd = rand(80, 260);
-        particles.push({
-          x: cx, y: cy,
-          vx: Math.cos(ang)*spd,
-          vy: Math.sin(ang)*spd - rand(20,80),
-          g: 320,
-          life: rand(0.3, 0.55),
-          t: 0,
-          color: Math.random()<0.5 ? (colorA||'#ffd1a3') : (colorB||'#ff914d'),
-          r: rand(2,4)
-        });
+    },
+    {
+      "name":"Innate Spellcasting (CHA 16)",
+      "type":"feat",
+      "img":"icons/magic/control/hypnosis-mesmerism-eye.webp",
+      "system":{
+        "description":{"value":"<p>Spell save DC 16; +8 to hit with spell attacks.</p><p><strong>At will</strong>: dancing lights, friends, minor illusion, prestidigitation</p><p><strong>3/day each</strong>: calm emotions, hypnotic pattern</p><p><strong>1/day each</strong>: greater invisibility, Otto’s irresistible dance</p>"}
       }
     }
-    function updateParticles(dt){ for (const p of particles){ p.t += dt; if (p.t > p.life) continue; p.vy += p.g*dt; p.x += p.vx*dt; p.y += p.vy*dt; } }
-    function drawParticles(){ for (const p of particles){ if (p.t > p.life) continue; const k = 1 - (p.t/p.life); ctx.globalAlpha = clamp(k, 0, 1); ctx.fillStyle = p.color; ctx.beginPath(); arcSafe(ctx, p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; } }
-
-    // ===== FX: flashes & smoke =====
-    function triggerShake(amp,dur){ shakeAmp=amp; shakeDur=dur; shakeT=dur; }
-    function spawnMuzzleFlash(x,y){ flashes.push({x,y,t:0,life:0.25,size:56}); }
-    function updateFlashes(dt){ for(const f of flashes) f.t+=dt; }
-    function drawFlashes(){ for(const f of flashes){ if(f.t>f.life) continue; const u=f.t/f.life,k=1-u,s=f.size*(1-u*0.85); ctx.save(); ctx.globalAlpha=k; if(sprites.projectileB){ ctx.drawImage(sprites.projectileB,f.x-s/1.5,f.y-s/1.5,s*1.5,s*1.5);} ctx.globalCompositeOperation='lighter'; const g=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,s); g.addColorStop(0,'rgba(255,230,120,0.95)'); g.addColorStop(0.5,'rgba(255,180,60,0.6)'); g.addColorStop(1,'rgba(255,120,0,0)'); ctx.fillStyle=g; ctx.beginPath(); arcSafe(ctx,f.x,f.y,s,0,Math.PI*2); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.restore(); } }
-    function spawnSmokePuffs(x,y){ const n=4; for(let i=0;i<n;i++){ smokes.push({x:x+rand(-6,6), y:y+rand(-4,4), vx:rand(-12,-6), vy:rand(-24,-16), life:rand(2.6,3.2), t:0, size:rand(22,30), growth:rand(6,14), rot:rand(0,Math.PI*2), rotSpeed:rand(-1,1)});} }
-    function updateSmokes(dt){ for(const s of smokes){ s.t+=dt; if(s.t>s.life) continue; s.x+=s.vx*dt; s.y+=s.vy*dt; s.size+=s.growth*dt; s.rot+=s.rotSpeed*dt; } }
-    function drawSmokes(){ for(const s of smokes){ if(s.t>s.life) continue; const k=1-(s.t/s.life); ctx.save(); ctx.globalAlpha=clamp(k*0.85,0,0.85); if(sprites.smoke){ ctx.translate(s.x,s.y); ctx.rotate(s.rot); ctx.drawImage(sprites.smoke,-s.size/2,-s.size/2,s.size,s.size);} else { ctx.fillStyle='rgba(200,200,200,0.6)'; ctx.beginPath(); arcSafe(ctx,s.x,s.y,s.size/2,0,Math.PI*2); ctx.fill(); } ctx.restore(); } }
-    function drawFirelight(now){ for(const em of smokeEmitters){ const pulse=0.6+0.4*Math.sin(now*6+em.x*0.01+em.y*0.01); const R=26+10*pulse; ctx.save(); ctx.globalCompositeOperation='lighter'; const grad=ctx.createRadialGradient(em.x,em.y,0,em.x,em.y,R); grad.addColorStop(0,`rgba(255,180,60,${0.45*pulse})`); grad.addColorStop(0.7,'rgba(255,140,40,0.18)'); grad.addColorStop(1,'rgba(255,120,0,0)'); ctx.fillStyle=grad; ctx.beginPath(); arcSafe(ctx,em.x,em.y,R,0,Math.PI*2); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.restore(); } }
-
-    // ===== WATER =====
-    function ensureWaterPattern(){ if(!waterPattern && sprites.waterTex){ waterPattern=ctx.createPattern(sprites.waterTex,'repeat'); if(waterPattern && waterPattern.setTransform){ const m=new DOMMatrix(); m.a=WATER_SCALE; m.d=WATER_SCALE; waterPattern.setTransform(m);} } }
-    function drawWater(){ const waterTop=TOP_MARGIN-70; ensureWaterPattern(); if(waterPattern){ ctx.save(); const ox=-waterScrollX*WATER_SCALE, oy=-waterScrollY*WATER_SCALE; ctx.translate(ox,oy); ctx.fillStyle=waterPattern; ctx.fillRect(-W*2, waterTop-H*2, W*5, H*5); ctx.restore(); const g=ctx.createLinearGradient(0,waterTop,0,H); g.addColorStop(0,'rgba(0,0,0,0.05)'); g.addColorStop(1,'rgba(0,0,0,0.35)'); ctx.fillStyle=g; ctx.fillRect(0,waterTop,W,H-waterTop);} else { ctx.fillStyle='#0a2a3c'; ctx.fillRect(0,waterTop,W,H-waterTop);} }
-
-    // ===== ENEMY / SHOTS =====
-    function enemyMuzzle(){ const left=ENEMY_CENTER_X-ENEMY_SPRITE_SIZE/2; return { x:left+ENEMY_MUZZLE_OFFSET_X, y:enemy.y+ENEMY_MUZZLE_OFFSET_Y }; }
-    function scheduleShot(){ const minLane=clamp(enemy.lane-MAX_ENEMY_LANE_STEP,0,LANES-1); const maxLane=clamp(enemy.lane+MAX_ENEMY_LANE_STEP,0,LANES-1); const lane=randInt(minLane,maxLane); const yTarget=laneY(lane); enemy.moving=true; enemy.moveFromY=enemy.y; enemy.moveToY=yTarget; enemy.moveStart=performance.now()/1000; enemy.lane=lane; firePending={ lane, time: performance.now()/1000 + ENEMY_WINDUP_MS/1000 }; }
-    function spawnProjectile(forcedLane=null){ const lane=(forcedLane==null)? randInt(0,LANES-1):forcedLane; const y0=laneY(lane), x0=SPAWN_X; const v0=rand(...V0_RANGE), a=rand(...A_RANGE); const distance=x0-IMPACT_X; const tImpactBase=timeToTravel(distance,v0,a); const tHalfBase=timeToTravel(distance/2,v0,a); const isSlow=(++spawnCount % 5 === 0); const totalT=isSlow? (2*tImpactBase - tHalfBase): tImpactBase; const vImpactApprox=distance/totalT; const arcH=rand(...ARC_HEIGHT_RANGE); projectiles.push({ lane,x0,y0,v0,a,distance,tImpact:totalT,tImpactBase,tHalf:tHalfBase,isSlow,vImpact:vImpactApprox,arcH, spawnTime:performance.now()/1000, status:'flying', x:x0, reflectStart:0, explodedAt:null }); return projectiles[projectiles.length-1]; }
-
-    // ===== INPUT =====
-    window.addEventListener('keydown', async (e)=>{
-      if (e.repeat) return;
-      // R should always stop BGM and reset
-      if (e.key==='r' || e.key==='R') { AudioManager.stop('bg'); resetGame(); return; }
-      if (state==='ready' && e.code==='Space') { state='playing'; $overlay.style.display='none'; AudioManager.start(true); return; }
-      if (state!=='playing') return;
-      if (e.key==='w' || e.key==='ArrowUp') player.lane=clamp(player.lane-1,0,LANES-1);
-      else if (e.key==='s' || e.key==='ArrowDown') player.lane=clamp(player.lane+1,0,LANES-1);
-      else if (e.code==='Space') attemptSpace();
-    });
-
-    function attemptSpace(){
-      if(state!=='playing') return;
-      const now=performance.now()/1000;
-      if((now-lastBlockAt)<BLOCK_COOLDOWN){ player.blockFxTimer=0.06; return; }
-      lastBlockAt=now;
-      player.blockPoseTimer=Math.max(player.blockPoseTimer,0.25);
-      let best=null,bestAbs=Infinity;
-      for(const p of projectiles){
-        if(p.status!=='flying') continue;
-        if(p.lane!==player.lane) continue;
-        const tRemain=(p.spawnTime+p.tImpact)-now;
-        if(tRemain<0) continue;
-        const abs=Math.abs(tRemain);
-        if(abs<bestAbs){ bestAbs=abs; best=p; }
-      }
-      if(!best){ player.blockFxTimer=0.08; return; }
-      const inDodge=bestAbs<= (DODGE_WINDOW_SECONDS/2);
-      const inPerfect=bestAbs<= (PERFECT_WINDOW_SECONDS/2);
-      if(inDodge){
-        if(inPerfect){
-          best.status='reflected';
-          best.reflectStart=now;
-          best.reflectX0=IMPACT_X; best.reflectY0=best.y0;
-          score+=(1+PERFECT_BONUS);
-          spawnMuzzleFlash(IMPACT_X,best.y0);
-          AudioManager.play('deflect');
-        } else {
-          best.status='deflected';
-          best.deflectStart=now;
-          best.deflectX0=IMPACT_X; best.deflectY0=best.y0;
-          best.deflectVx=rand(-60,60);
-          best.deflectVy=240;
-          AudioManager.play('deflect');
-          spawnExplosionBits(PLAYER_CENTER_X,best.y0,16,'#9dffd9','#66f0ff');
-          score+=1;
-        }
-        player.blockFxTimer=0.18;
-        updateHud();
-      } else {
-        player.blockFxTimer=0.08;
-      }
-    }
-
-    // ===== DRAWING =====
-    function drawRaftSprite(img,x,y,w,h,mirrorX=false){ if(!img){ ctx.save(); const plankCount=6,plankW=w/plankCount; for(let i=0;i<plankCount;i++){ const px=x+i*plankW+2; ctx.fillStyle=i%2?'#6a3f22':'#7a4b28'; ctx.beginPath(); const r=6; ctx.moveTo(px+r,y); ctx.arcTo(px+plankW-4,y,px+plankW-4,y+h,r); ctx.arcTo(px+plankW-4,y+h,px,y+h,r); ctx.arcTo(px,y+h,px,y,r); ctx.arcTo(px,y,px+plankW-4,y,r); ctx.closePath(); ctx.fill(); } ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); ctx.restore(); return;} ctx.save(); if(mirrorX){ ctx.translate(x+w,y); ctx.scale(-1,1); ctx.drawImage(img,0,0,w,h);} else { ctx.translate(x,y); ctx.drawImage(img,0,0,w,h);} ctx.restore(); }
-    function drawSceneBg(){ drawWater(); const raftH=(BOTTOM_MARGIN-TOP_MARGIN)+120; drawRaftSprite(sprites.raft,ENEMY_RAFT_X,TOP_MARGIN-60,140,raftH,false); drawRaftSprite(sprites.raft,PLAYER_RAFT_X,TOP_MARGIN-60,140,raftH,true); if(sprites.cannon){ ctx.drawImage(sprites.cannon, ENEMY_CENTER_X-ENEMY_SPRITE_SIZE/2, enemy.y-ENEMY_SPRITE_SIZE/2, ENEMY_SPRITE_SIZE, ENEMY_SPRITE_SIZE);} else { ctx.save(); ctx.fillStyle='#ffb347'; ctx.beginPath(); arcSafe(ctx,ENEMY_CENTER_X,enemy.y,16,0,Math.PI*2); ctx.fill(); ctx.restore(); } }
-    function drawPlayer(dt){ const y=laneY(player.lane); ctx.save(); ctx.translate(PLAYER_CENTER_X,y); if(player.blockFxTimer>0){ ctx.shadowColor='#66f0ff'; ctx.shadowBlur=18; } const useBlock=player.blockPoseTimer>0 && sprites.playerBlock; const idleImg=sprites.playerIdle; if(useBlock){ const sz=Math.round(PLAYER_SPRITE_SIZE*PLAYER_BLOCK_SCALE); ctx.drawImage(sprites.playerBlock,-sz/2,-sz/2,sz,sz);} else if(idleImg){ ctx.drawImage(idleImg,-PLAYER_SPRITE_SIZE/2,-PLAYER_SPRITE_SIZE/2,PLAYER_SPRITE_SIZE,PLAYER_SPRITE_SIZE);} else { ctx.fillStyle='#8fd6ff'; ctx.beginPath(); arcSafe(ctx,0,0,PLAYER_RADIUS,0,Math.PI*2); ctx.fill(); } ctx.restore(); player.blockFxTimer=Math.max(0,player.blockFxTimer-dt); player.blockPoseTimer=Math.max(0,player.blockPoseTimer-dt); }
-    function drawProjectile(p,now){
-      const t=now-p.spawnTime;
-      if(p.status==='flying' && !p.isSlow && t>=p.tImpact){
-        p.status='missed'; p.explodedAt=now;
-        const ix=IMPACT_X,iy=p.y0;
-        spawnMuzzleFlash(ix,iy);
-        AudioManager.play('explosion');
-        spawnExplosionBits(ix,iy,50,'#ffb84d','#ff7b00');
-        spawnSmokePuffs(ix,iy);
-        smokeEmitters.push({x:ix,y:iy,rate:0.5,acc:0});
-        onPlayerHit(iy);
-      }
-      let x,y;
-      if(p.status==='flying'){
-        let xBase=p.x0-(p.v0*t+0.5*p.a*t*t);
-        if(p.isSlow && t>p.tHalf){
-          const u=clamp((t-p.tHalf)/(p.tImpact-p.tHalf),0,1);
-          // Slow balls lose steam and drop into the water before reaching the player
-          const s=0.5+0.35*u; // travel only ~85% of the way
-          x=p.x0-p.distance*s;
-          const hump=Math.pow(Math.sin(Math.PI*s),1.15);
-          y=p.y0-p.arcH*hump + (u*u)*90; // add downward drop
-          p.x=x;
-          if(u>=1){
-            p.status='splashed';
-            p.splashAt=now;
-            AudioManager.play('explosion');
-            spawnSmokePuffs(x, laneY(p.lane));
-          }
-        } else {
-          x=xBase;
-          const sForArc=inboundProgress(p,x); const hump=Math.pow(Math.sin(Math.PI*sForArc),1.15); y=p.y0-p.arcH*hump; p.x=x;
-        }
-      } else if(p.status==='reflected'){
-        const rx0=(p.reflectX0??IMPACT_X);
-        const tr=now-p.reflectStart; const vR0=p.vImpact*REFLECT_SPEED_SCALE; const aR=p.a*REFLECT_ACCEL_SCALE;
-        x=rx0+(vR0*tr+0.5*aR*tr*tr);
-        const refDist=Math.max(1,p.x0-rx0); const s=clamp((x-rx0)/refDist,0,1);
-        const hump=Math.pow(Math.sin(Math.PI*s),1.15); y=(p.reflectY0??p.y0)-p.arcH*hump; p.x=x;
-        if(x>=p.x0){ const mz=enemyMuzzle(); const hitY=(p.reflectY0??p.y0); spawnMuzzleFlash(mz.x,hitY); spawnExplosionBits(mz.x,hitY,50,'#ffd166','#ff9b34'); spawnSmokePuffs(mz.x,hitY); AudioManager.play('explosion'); smokeEmitters.push({x:mz.x,y:hitY,rate:0.5,acc:0}); p.status='sourced'; p.reflectHitTime=now; onEnemyHit(hitY);} 
-      } else if(p.status==='deflected'){
-        const td=now-p.deflectStart; x=p.deflectX0+p.deflectVx*td; y=p.deflectY0+p.deflectVy*td; p.x=x; 
-      } else { x=p.x; y=p.y0; }
-      const isReflected=(p.status==='reflected');
-      let sizeScale=1; if(p.status==='flying'){ const s=inboundProgress(p,x); sizeScale=SIZE_IN_MIN+(SIZE_IN_MAX-SIZE_IN_MIN)*s; }
-      else if(isReflected){ const rx0=(p.reflectX0??IMPACT_X); const s=clamp((x-rx0)/Math.max(1,p.x0-rx0),0,1); sizeScale=SIZE_IN_MIN+(SIZE_IN_MAX-SIZE_IN_MIN)*(1-s); }
-      if(p.status==='flying' || isReflected){ const sProg=(p.status==='flying')? inboundProgress(p,x):(()=>{ const rx0=(p.reflectX0??IMPACT_X); const refDist=Math.max(1,p.x0-rx0); return clamp((x-rx0)/refDist,0,1); })(); const edgeBoost=0.5+0.5*Math.abs(2*sProg-1); const shadowW=(PROJECTILE_RADIUS*1.3)*edgeBoost; const shadowH=clamp(3+7*edgeBoost,3,10); ctx.save(); ctx.globalAlpha=0.25+0.25*edgeBoost; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(x,p.y0+18,shadowW,shadowH,0,0,Math.PI*2); ctx.fill(); ctx.restore(); }
-      if(p.status==='flying' || isReflected){ ctx.save(); const r=Math.max(1,PROJECTILE_RADIUS*sizeScale); const sPx=r*2; const ballImg=sprites.projectileA; if(ballImg){ const angle=now*6.0; ctx.translate(x,y); ctx.rotate(angle); ctx.drawImage(ballImg,-sPx/2,-sPx/2,sPx,sPx);} else { ctx.fillStyle=isReflected?'#56f291':'#cfd7ff'; ctx.beginPath(); arcSafe(ctx,x,y,r,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
-    }
-
-    // ===== EVENTS =====
-    function triggerEnd(side){
-      // Stop BGM when game ends to avoid layered loops
-      AudioManager.stop('bg');
-      state='ending'; endingSide=side; endTimer=2.6; const rx=side==='player'?PLAYER_RAFT_X:ENEMY_RAFT_X; const ry=TOP_MARGIN-60, rw=140, rh=(BOTTOM_MARGIN-TOP_MARGIN)+120;
-      triggerShake(14,0.6);
-      // beefed-up multi-explosion SFX burst
-      // Three staggered blasts (less glitchy)
-      [100,200,300].forEach((base)=>{
-        setTimeout(()=> AudioManager.play('explosion'), base + Math.floor(Math.random()*100));
-      });
-      for(let i=0;i<22;i++){ const x=rx+rand(10,rw-10), y=ry+rand(10,rh-10); spawnMuzzleFlash(x,y); spawnSmokePuffs(x,y); }
-    }
-    function onPlayerHit(yHit){ playerLives=Math.max(0,playerLives-1); updateHud(); triggerShake(6,0.18); if(playerLives<=0){ triggerEnd('player'); $overlayTitle.textContent='Your raft sank!'; $overlay.style.display='grid'; } }
-    function onEnemyHit(_y){ enemyLives=Math.max(0,enemyLives-1); updateHud(); if(enemyLives<=0){ triggerEnd('enemy'); $overlayTitle.textContent='Enemy raft destroyed!'; $overlay.style.display='grid'; } }
-    function updateHud(){ $score.textContent=score; $plives.textContent=playerLives; $elives.textContent=enemyLives; }
-    function resetGame(){ /* ensure bg fully stopped */ AudioManager.stop('bg'); state='ready'; endingSide=null; endTimer=0; score=0; playerLives=PLAYER_LIVES; enemyLives=ENEMY_LIVES; projectiles.length=0; particles.length=0; flashes.length=0; smokes.length=0; smokeEmitters.length=0; spawnCount=0; player.lane=Math.floor(LANES/2); player.blockFxTimer=0; player.blockPoseTimer=0; enemy.lane=Math.floor(LANES/2); enemy.y=laneY(Math.floor(LANES/2)); enemy.moving=false; spawnTimerMs=BURST_CADENCE_MS; burstRemaining=randInt(BURST_SIZE_RANGE[0],BURST_SIZE_RANGE[1]); burstPauseS=0; firePending=null; waterScrollX=0; waterScrollY=0; shakeT=0; shakeDur=0; shakeAmp=0; updateHud(); $overlayTitle.textContent='Press SPACE to Start'; $overlay.style.display='grid'; }
-
-    // ===== LOOP =====
-    let lastTs=0; function tick(ts){ const dtMs=lastTs? (ts-lastTs):16.7; lastTs=ts; const dt=dtMs/1000, now=ts/1000; if(state==='playing'){ if(burstPauseS>0) burstPauseS-=dt; spawnTimerMs-=dtMs; if(spawnTimerMs<=0 && !firePending && burstPauseS<=0){ scheduleShot(); spawnTimerMs=(burstRemaining>0? BURST_CADENCE_ACTIVE_MS:BURST_CADENCE_MS);} if(firePending && now>=firePending.time){ const lane=firePending.lane; const mz=enemyMuzzle(); spawnMuzzleFlash(mz.x,laneY(lane)); spawnSmokePuffs(mz.x,laneY(lane)); AudioManager.play('cannon'); const proj=spawnProjectile(lane); firePending=null; if(proj && proj.isSlow) spawnTimerMs+=SLOW_EXTRA_DELAY_MS; burstRemaining--; if(burstRemaining<=0){ burstPauseS=rand(...BURST_PAUSE_RANGE_S); burstRemaining=randInt(BURST_SIZE_RANGE[0],BURST_SIZE_RANGE[1]); } } }
-      if(enemy.moving){ const u=clamp((now-enemy.moveStart)/enemy.moveDur,0,1); const eased=u<0.5? 2*u*u: -1+(4-2*u)*u; enemy.y=enemy.moveFromY+(enemy.moveToY-enemy.moveFromY)*eased; if(u>=1){ enemy.moving=false; enemy.y=enemy.moveToY; } }
-      let sx=0,sy=0; if(shakeT>0){ shakeT-=dt; const k=shakeT/Math.max(0.0001,shakeDur); const amp=shakeAmp*k; sx=(Math.random()*2-1)*amp; sy=(Math.random()*2-1)*amp; }
-      if(state!=='ending'){ waterScrollX+=WATER_SCROLL_SPEED_X*dt; waterScrollY+=WATER_SCROLL_SPEED_Y*dt; }
-      updateParticles(dt); updateFlashes(dt); updateSmokes(dt); for(const em of smokeEmitters){ em.acc=(em.acc||0)+dt; const period=2; while(em.acc>=period){ em.acc-=period; spawnSmokePuffs(em.x,em.y);} }
-      ctx.clearRect(0,0,W,H); ctx.save(); ctx.translate(sx,sy); drawSceneBg(); drawFlashes(); drawSmokes(); drawFirelight(now); drawPlayer(dt); if(state!=='ending'){ for(const p of projectiles) drawProjectile(p,now);} drawParticles(); ctx.restore();
-      if(state!=='ending'){ projectiles=projectiles.filter(p=>{ if(p.status==='splashed') return (now-(p.splashAt||now))<0.5; return true; }); for(let i=flashes.length-1;i>=0;i--) if(flashes[i].t>flashes[i].life) flashes.splice(i,1); for(let i=smokes.length-1;i>=0;i--) if(smokes[i].t>smokes[i].life) smokes.splice(i,1); for(let i=particles.length-1;i>=0;i--) if(particles[i].t>particles[i].life) particles.splice(i,1); }
-      if(state==='ending'){ endTimer-=dt; if(endTimer<=0){ /* freeze */ } }
-    }
-
-    // ===== TESTS =====
-    function runTests(){
-      const out=[]; const ok=(name,cond)=>{ out.push(`${cond?'✔':'✘'} ${name}`); console.assert(cond,name); };
-      // existing sanity
-      ok('state starts as ready', state==='ready');
-      ok('AudioManager present', typeof AudioManager==='object');
-      ok('spawnExplosionBits exists', typeof spawnExplosionBits==='function');
-      ok('draw/updateParticles exist', typeof drawParticles==='function' && typeof updateParticles==='function');
-
-      // NEW: particle cleanup regression (no stray p.* refs)
-      const before = particles.length;
-      particles.push({x:0,y:0,vx:0,vy:0,g:0,life:0.1,t:0.2,color:'#fff',r:1});
-      for(let i=particles.length-1;i>=0;i--) if(particles[i].t>particles[i].life) particles.splice(i,1);
-      ok('expired particle removed via .life (no p.*)', particles.length===before);
-
-      // NEW: drawProjectile smoke test
-      const now = performance.now()/1000;
-      const dummy = { lane:0, x0:W-120, y0:laneY(0), v0:300, a:200, distance:(W-120)-IMPACT_X, tImpact:0.5, tHalf:0.25, isSlow:false, vImpact:200, arcH:40, spawnTime:now-0.1, status:'flying', x:W-120 };
-      let threw=false; try { drawProjectile(dummy, now); } catch(e){ threw=true; console.error('drawProjectile threw:', e); }
-      ok('drawProjectile does not throw on minimal projectile', !threw);
-
-      document.getElementById('testOutput').textContent=out.join('\n');
-    }
-
-    // Boot
-    resetGame(); function loop(ts){ tick(ts); requestAnimationFrame(loop);} requestAnimationFrame(loop); runTests();
-  })();
-  </script>
-
-
-</body></html>
+  ],
+  "prototypeToken":{"name":"Lumiselle Chorus-Muse","width":1,"height":1}
+}
